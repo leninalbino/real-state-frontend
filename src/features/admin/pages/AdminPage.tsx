@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft } from 'lucide-react';
 import {
   deleteProperty,
   getAllProperties,
@@ -11,6 +12,7 @@ import type { Property } from '../../properties/types';
 const AdminPage: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const fetchProperties = async () => {
     try {
@@ -61,9 +63,16 @@ const AdminPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-8">
-      <div className="py-8">
-        <div>
+    <div className="container mx-auto px-4 sm:px-8 pt-16">
+      <div >
+        <div className="flex items-center py-2 mb-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="text-gray-700 hover:text-gray-900 transition-colors mr-2"
+          >
+            <ChevronLeft size={28} />
+          </button>
           <h2 className="text-2xl font-semibold leading-tight">Properties</h2>
         </div>
         <div className="my-2 flex sm:flex-row flex-col">
