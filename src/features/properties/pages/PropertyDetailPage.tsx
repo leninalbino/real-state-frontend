@@ -4,7 +4,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination } from "swiper/modules";
 import { ChevronLeft } from "lucide-react";
 import "swiper/swiper-bundle.css";
-import { formatPrice } from "../../../shared/utils/formatPrice";
+import { formatPrice, type Currency } from "../../../shared/utils/formatPrice";
 import { getPropertyById } from "../services/propertyService";
 import type { Property } from "../types";
 
@@ -107,7 +107,7 @@ const PropertyDetailPage = () => {
                 <span className="inline-flex items-center bg-yellow-300 text-gray-900 text-sm font-semibold px-3 py-1 rounded-full">
                   {statusLabel}
                 </span>
-                <p className="text-blue-600 text-3xl font-black">{formatPrice(property.price, property.currency)}</p>
+                <p className="text-blue-600 text-3xl font-black">{formatPrice(property.price, property.currency as Currency)}</p>
               </div>
               <div className="flex items-center gap-4 text-base text-gray-800 whitespace-nowrap">
                 <span className="inline-flex items-center gap-2">🛏 {property.bedrooms}</span>

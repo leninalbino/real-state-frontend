@@ -8,15 +8,15 @@ export const apiFetch = async <T>(
   path: string,
   options: FetchOptions = {}
 ): Promise<T> => {
-  const headers: HeadersInit = {
+  const headers = new Headers({
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
+    ...options.headers,
+  });
 
   if (options.auth) {
     const token = getAuthToken();
     if (token) {
-      headers.Authorization = `Bearer ${token}`;
+      headers.set('Authorization', `Bearer ${token}`);
     }
   }
 
