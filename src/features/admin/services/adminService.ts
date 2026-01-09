@@ -1,5 +1,5 @@
+import type { User } from '../../../app/auth/AuthContext';
 import { apiFetch } from '../../../shared/api/client';
-import type { User } from '../../auth/AuthContext';
 import type { Property } from '../../properties/types';
 
 export interface AgentProfile {

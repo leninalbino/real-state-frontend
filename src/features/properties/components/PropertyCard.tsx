@@ -1,4 +1,4 @@
-import { formatPrice } from "../../../shared/utils/formatPrice";
+import { formatPrice, type Currency } from "../../../shared/utils/formatPrice";
 import type { Property } from "../types";
 
 export const PropertyCard = ({
@@ -41,7 +41,7 @@ export const PropertyCard = ({
       </div>
       <p className="text-sm text-gray-700 mb-1">Código: #{property.id}</p>
       <span className="text-blue-600 font-bold text-2xl mb-2 block">
-        {formatPrice(property.price, property.currency)}
+        {formatPrice(property.price, property.currency as Currency)}
       </span>
       <h4 className="text-base font-semibold text-gray-900 line-clamp-2 mb-3 min-h-[48px]">
         {property.title}

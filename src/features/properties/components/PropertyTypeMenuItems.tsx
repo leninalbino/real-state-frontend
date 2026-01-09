@@ -1,7 +1,5 @@
 import type { PropertyType } from "../services/formService";
 
-type SelectionMode = "single" | "multi";
-
 type PropertyTypeMenuItemsProps = {
   propertyTypes: PropertyType[];
   isSelected: (type: PropertyType) => boolean;

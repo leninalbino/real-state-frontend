@@ -10,13 +10,15 @@ import { PropertyTypeMenuItems } from "./PropertyTypeMenuItems";
 import { useAmenitySelection, type SelectedAmenities } from "../hooks/useAmenitySelection";
 import { usePropertyFiltersData } from "../hooks/usePropertyFiltersData";
 import type { PropertyType, PropertyCharacteristic } from "../services/formService";
-import type { Property, ListingType } from "../types";
+import type { Property, ListingType } from "../types"; // Import Currency
+
+type PropertyFormData = Omit<Property, 'id' | 'moderationStatus' | 'agent'>;
 
 interface AdFormProps {
   onCancel?: () => void;
   initialData?: Property | null;
   isEditing?: boolean;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: PropertyFormData) => Promise<void>;
 }
 
 export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: AdFormProps) => {
@@ -66,7 +68,7 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
       setTitulo(initialData.title);
       setDescripcion(initialData.description);
       setPriceValue(initialData.price);
-      setCurrency(initialData.currency);
+      setCurrency(initialData.currency as 'USD' | 'RD');
       setFinalLocation(initialData.location);
       setTiposSeleccionados([initialData.listingType]);
       if (initialData.images) {
@@ -181,6 +183,19 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
       const bedrooms = extractNumber(selectedAmenities['bedrooms']);
       const bathrooms = extractNumber(selectedAmenities['bathrooms']);
 // ...
+      const area = getAreaValue();
+      const amenities = Object.entries(selectedAmenities).map(([key, value]) => {
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          const min = value.min || '';
+          const max = value.max || '';
+          return `${key}:${min}-${max}`;
+        }
+        if (Array.isArray(value)) {
+          return `${key}:${value.join(',')}`;
+        }
+        return `${key}:${value}`;
+      });
+
       const propertyData = {
         title: titulo,
         price: priceValue,
@@ -242,9 +257,6 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
     setPhotoPreviews(newPreviews);
   };
 
-  const handleAddPhotoField = () => {
-    setUploadedPhotos([...uploadedPhotos, new File([], '')]);
-  };
 
   const isPriceFilterActive = priceValue > priceMin;
   const isCharacteristicsFilterActive = Object.keys(selectedAmenities).length > 0;
