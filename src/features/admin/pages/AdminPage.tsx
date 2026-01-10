@@ -86,6 +86,11 @@ const AdminPage: React.FC = () => {
               Manage Agents
             </Link>
           </div>
+          <div className="block relative ml-4">
+            <Link to="/admin/maintenance" className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+              Maintenance
+            </Link>
+          </div>
         </div>
         <div className="-mx-4 sm:-mx-8 px-4 sm:px-8 py-4 overflow-x-auto">
           <div className="inline-block min-w-full shadow rounded-lg overflow-hidden">

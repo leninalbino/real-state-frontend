@@ -12,6 +12,9 @@ import DashboardPage from "../features/agent/pages/DashboardPage";
 import { AgentRoute } from "./auth/AgentRoute";
 import AgentListPage from "../features/admin/pages/AgentListPage";
 import AgentDetailPage from "../features/admin/pages/AgentDetailPage";
+import MaintenancePage from "../features/admin/pages/MaintenancePage";
+import PropertyTypesPage from "../features/admin/pages/PropertyTypesPage";
+import CharacteristicsPage from "../features/admin/pages/CharacteristicsPage";
 
 export const router = createBrowserRouter([
   {
@@ -78,6 +81,36 @@ export const router = createBrowserRouter([
       <AdminRoute>
         <AppLayout>
           <AgentDetailPage />
+        </AppLayout>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: "/admin/maintenance",
+    element: (
+      <AdminRoute>
+        <AppLayout>
+          <MaintenancePage />
+        </AppLayout>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: "/admin/maintenance/property-types",
+    element: (
+      <AdminRoute>
+        <AppLayout>
+          <PropertyTypesPage />
+        </AppLayout>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: "/admin/maintenance/characteristics",
+    element: (
+      <AdminRoute>
+        <AppLayout>
+          <CharacteristicsPage />
         </AppLayout>
       </AdminRoute>
     ),

@@ -20,7 +20,7 @@ export interface PropertyCharacteristic {
 import { apiFetch } from '../../../shared/api/client';
 
 export const getPropertyTypes = (): Promise<PropertyType[]> =>
-  apiFetch<PropertyType[]>('/api/filters/property-types');
+  apiFetch<PropertyType[]>('/api/property-types');
 
 export const getPropertyCharacteristics = (): Promise<PropertyCharacteristic[]> =>
-  apiFetch<PropertyCharacteristic[]>('/api/filters/property-characteristics');
+  apiFetch<PropertyCharacteristic[]>('/api/property-characteristics');
