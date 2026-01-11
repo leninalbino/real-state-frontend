@@ -13,12 +13,10 @@ const Home = () => {
     min: 0,
     max: 500000,
   });
-  const [locationInput, setLocationInput] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const {
     selectedAmenities,
     handleAmenityChange,
-    isAmenitySelected,
   } = useAmenitySelection("multi");
 
   return (
@@ -33,12 +31,9 @@ const Home = () => {
           setSelectedPropTypes={setSelectedPropTypes}
           priceRange={priceRange}
           setPriceRange={setPriceRange}
-          locationInput={locationInput}
-          setLocationInput={setLocationInput}
           setSelectedLocation={setSelectedLocation}
           selectedAmenities={selectedAmenities}
           onAmenityChange={handleAmenityChange}
-          isAmenitySelected={isAmenitySelected}
         />
       </div>
 

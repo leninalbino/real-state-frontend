@@ -1,17 +1,23 @@
 import { Menu, Transition } from "@headlessui/react";
 import { Megaphone, Search, MapPin } from "lucide-react";
-import { Fragment, useMemo, useRef, useState, useEffect } from "react";
+import { Fragment, useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { TextInput } from "../../../shared/ui/TextInput";
 import type { ListingType } from "../types";
 import { formatPrice } from "../../../shared/utils/formatPrice";
-import { CharacteristicsMenuContent } from "./CharacteristicsMenuContent";
 import { PropertyTypeMenuItems } from "./PropertyTypeMenuItems";
 import type { SelectedAmenities } from "../hooks/useAmenitySelection";
 import { usePropertyFiltersData } from "../hooks/usePropertyFiltersData";
 import type { PropertyType, PropertyCharacteristic } from "../services/formService";
-import { DOMINICAN_REPUBLIC_LOCATIONS } from "../../../shared/data/locations";
 import { VentaIcon, RentaIcon, TipoIcon, PriceIcon, CaracteristicasIcon } from "../../../shared/iconsvg";
+
+import { CascadingPanelPicker } from "../../../shared/ui/CascadingPanelPicker";
+import type { PickerNode } from "../../../shared/ui/MultiColumnPicker/types";
+import { useLocationData } from "../hooks/useLocationData";
+
+interface CharacteristicMeta {
+  characteristicId: string;
+  value: string;
+}
 
 interface SearchBarProps {
   tiposSeleccionados: ListingType[];
@@ -20,15 +26,12 @@ interface SearchBarProps {
   setSelectedPropTypes: React.Dispatch<React.SetStateAction<PropertyType[]>>;
   priceRange: { min: number; max: number };
   setPriceRange: React.Dispatch<React.SetStateAction<{ min: number; max: number }>>;
-  locationInput: string;
-  setLocationInput: React.Dispatch<React.SetStateAction<string>>;
   setSelectedLocation: React.Dispatch<React.SetStateAction<string>>;
   selectedAmenities: SelectedAmenities;
   onAmenityChange: (
     charId: string,
     value: string | { min?: string; max?: string }
   ) => void;
-  isAmenitySelected: (charId: string, value: string) => boolean;
 }
 
 export const SearchBar = ({
@@ -38,12 +41,9 @@ export const SearchBar = ({
   setSelectedPropTypes,
   priceRange,
   setPriceRange,
-  locationInput,
-  setLocationInput,
   setSelectedLocation,
   selectedAmenities,
   onAmenityChange,
-  isAmenitySelected,
 }: SearchBarProps) => {
   const navigate = useNavigate();
   const [draggingInput, setDraggingInput] = useState<'min' | 'max' | null>(null);
@@ -51,53 +51,80 @@ export const SearchBar = ({
   const priceMax = 500000;
   const priceStep = 10000;
   const [currency, setCurrency] = useState<'USD' | 'RD'>('USD');
-  const [activeCategory, setActiveCategory] = useState<PropertyCharacteristic | null>(null);
-  const [showMoreCategories, setShowMoreCategories] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const locationDropdownRef = useRef<HTMLDivElement | null>(null);
   const { propertyTypes, characteristics, loading, error } =
     usePropertyFiltersData();
+  const { locationData } = useLocationData();
+  const [locationValueIds, setLocationValueIds] = useState<string[]>([]);
 
-  const locationOptions = useMemo(() => {
-    const options = new Set<string>();
-    DOMINICAN_REPUBLIC_LOCATIONS.forEach((province) => {
-      options.add(province.nombre);
-      province.municipios.forEach((municipio) => {
-        options.add(`${municipio.nombre}, ${province.nombre}`);
-        municipio.distritos.forEach((distrito) => {
-          const distritoNombre =
-            typeof distrito === "string" ? distrito : distrito.nombre;
-          if (!distritoNombre) return;
-          options.add(
-            `${distritoNombre}, ${municipio.nombre}, ${province.nombre}`
-          );
-        });
+  const transformCharacteristicsToPickerData = (characteristics: PropertyCharacteristic[]): PickerNode[] => {
+    return characteristics
+      .filter(char => char.type === 'select' || char.type === 'boolean')
+      .map(char => {
+        let children: PickerNode[] = [];
+        if (char.type === 'boolean') {
+          children = [
+            { id: `${char.id}-true`, label: 'Sí', meta: { characteristicId: char.id, value: 'Sí' } },
+            { id: `${char.id}-false`, label: 'No', meta: { characteristicId: char.id, value: 'No' } },
+          ];
+        } else if (char.type === 'select' && char.options) {
+          children = char.options.map((opt) => ({
+            id: `${char.id}-${opt.value}`,
+            label: opt.label,
+            meta: { characteristicId: char.id, value: opt.value },
+          }));
+        }
+        return {
+          id: char.id,
+          label: char.label,
+          children: children,
+        };
       });
-    });
-    return Array.from(options);
-  }, []);
+  };
 
-  const filteredLocations = useMemo(() => {
-    const query = locationInput.trim().toLowerCase();
-    if (query.length < 2) return [];
-    return locationOptions.filter((option) =>
-      option.toLowerCase().includes(query)
-    );
-  }, [locationInput, locationOptions]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!locationDropdownRef.current) return;
-      if (!locationDropdownRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
+  const getSelectedValues = (amenities: SelectedAmenities, data: PickerNode[]): string[] => {
+    const selectedIds: string[] = [];
+    for (const charId in amenities) {
+      const value = amenities[charId];
+      const rootNode = data.find(d => d.id === charId);
+      if (rootNode && rootNode.children) {
+        const childNode = rootNode.children.find(c => (c.meta as CharacteristicMeta).value === value);
+        if (childNode) {
+          selectedIds.push(childNode.id);
+        }
       }
-    };
+    }
+    return selectedIds;
+  };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  const pickerData = useMemo(() => transformCharacteristicsToPickerData(characteristics), [characteristics]);
+  const selectedIds = useMemo(() => getSelectedValues(selectedAmenities, pickerData), [selectedAmenities, pickerData]);
+  const [previousSelected, setPreviousSelected] = useState<string[]>(selectedIds);
+
+  // Update previousSelected when selectedIds changes
+  useEffect(() => {
+    setPreviousSelected(selectedIds);
+  }, [selectedIds]);
+
+  const handleCharacteristicsChange = (selectedLeafIds: string[], selectedLeafNodes: PickerNode[]) => {
+    const added = selectedLeafIds.filter(id => !previousSelected.includes(id));
+    const removed = previousSelected.filter(id => !selectedLeafIds.includes(id));
+
+    for (const id of added) {
+      const node = selectedLeafNodes.find(n => n.id === id);
+      if (node) {
+        const { characteristicId, value } = (node.meta as CharacteristicMeta);
+        onAmenityChange(characteristicId, value);
+      }
+    }
+    for (const id of removed) {
+      const node = pickerData.flatMap(d => d.children || []).find(c => c.id === id);
+      if (node) {
+        const { characteristicId, value } = (node.meta as CharacteristicMeta);
+        onAmenityChange(characteristicId, value); // toggle off
+      }
+    }
+    setPreviousSelected(selectedLeafIds);
+  };
 
   const handleToggle = (tipo: ListingType) => {
     if (tiposSeleccionados.includes(tipo)) {
@@ -360,36 +387,20 @@ export const SearchBar = ({
             }
             if (btn.key === 'caracteristicas') {
               return (
-                <Menu as="div" className="relative flex flex-col items-center flex-1 min-w-0" key={btn.key}>
+                <div className="relative flex flex-col items-center flex-1 min-w-0" key={btn.key}>
                   <span className="flex items-center justify-center mb-1">{btn.icon}</span>
-                  <Menu.Button className={`w-full px-2 py-2 rounded-2xl border transition-all font-bold text-base ${btn.active ? 'bg-yellow-300 text-black border-yellow-300' : 'bg-white border-gray-300 text-gray-700'} hover:shadow-md focus:outline-none`}>
-                    {btn.label}
-                  </Menu.Button>
-                  <Transition
-                    as={Fragment}
-                    enter="transition ease-out duration-100"
-                    enterFrom="transform opacity-0 scale-95"
-                    enterTo="transform opacity-100 scale-100"
-                    leave="transition ease-in duration-75"
-                    leaveFrom="transform opacity-100 scale-100"
-                    leaveTo="transform opacity-0 scale-95"
-                  >
-                    <Menu.Items className="absolute top-full mt-2 w-full sm:w-96 md:w-[500px] lg:w-[600px] origin-top-right right-0 bg-[#eef9fd] rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
-                      <CharacteristicsMenuContent
-                        characteristics={characteristics}
-                        activeCategory={activeCategory}
-                        onActiveCategoryChange={setActiveCategory}
-                        selectedAmenities={selectedAmenities}
-                        onAmenityChange={onAmenityChange}
-                        isAmenitySelected={isAmenitySelected}
-                        showMoreCategories={showMoreCategories}
-                        onToggleShowMore={() =>
-                          setShowMoreCategories(!showMoreCategories)
-                        }
-                      />
-                    </Menu.Items>
-                  </Transition>
-                </Menu>
+                  <CascadingPanelPicker
+                    trigger={
+                      <button className={`w-full px-2 py-2 rounded-2xl border transition-all font-bold text-base ${btn.active ? 'bg-yellow-300 text-black border-yellow-300' : 'bg-white border-gray-300 text-gray-700'} hover:shadow-md focus:outline-none`}>
+                        {btn.label}
+                      </button>
+                    }
+                    data={pickerData}
+                    selectionMode="multiple"
+                    value={selectedIds}
+                    onChange={handleCharacteristicsChange}
+                  />
+                </div>
               );
             }
             // Botón normal
@@ -408,44 +419,38 @@ export const SearchBar = ({
           })}
         </div>
         {/* Input de búsqueda */}
-        <div className="relative mt-4 mb-2" ref={locationDropdownRef}>
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-            <MapPin size={18} className="text-gray-400" />
-          </div>
-          <TextInput
-            type="text"
-            placeholder="lugar donde deseas buscar"
-            variant="search"
-            value={locationInput}
-            onChange={(event) => {
-              setLocationInput(event.target.value);
-              setSelectedLocation("");
-              setShowSuggestions(true);
+        <CascadingPanelPicker
+            trigger={
+                <div className="relative mt-4 mb-2">
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                        <MapPin size={18} className="text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Lugar donde deseas buscar"
+                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        value={locationValueIds.length > 0 ? locationData.find(n => locationValueIds.includes(n.id))?.label || '' : ''}
+                        readOnly
+                    />
+                    <div className="absolute inset-y-0 right-3 flex items-center">
+                        <Search size={26} className="text-blue-500" />
+                    </div>
+                </div>
+            }
+            data={locationData}
+            selectionMode="single"
+            value={locationValueIds}
+            onChange={(ids, nodes) => {
+                setLocationValueIds(ids);
+                // Use the label of the last selected node for the search query
+                const lastNode = nodes[nodes.length - 1];
+                if (lastNode) {
+                    setSelectedLocation(lastNode.label);
+                } else {
+                    setSelectedLocation('');
+                }
             }}
-            onFocus={() => setShowSuggestions(true)}
-          />
-          {showSuggestions && filteredLocations.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-60 overflow-auto">
-              {filteredLocations.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100"
-                  onClick={() => {
-                    setLocationInput(option);
-                    setSelectedLocation(option);
-                    setShowSuggestions(false);
-                  }}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="absolute inset-y-0 right-3 flex items-center">
-            <Search size={26} className="text-blue-500" />
-          </div>
-        </div>
+        />
       </div>
     </>
   );
