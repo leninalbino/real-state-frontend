@@ -204,7 +204,7 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
       {isOpen && (
         <div
           ref={panelRef}
-          className="absolute z-10 mt-1 relative inline-flex bg-[#EAFBFF] shadow-lg"
+          className="absolute z-10 mt-1 inline-flex bg-[#EAFBFF] shadow-lg"
           style={{ width: 'fit-content' }}
         >
           {columns.map((columnNodes, colIndex) => (
