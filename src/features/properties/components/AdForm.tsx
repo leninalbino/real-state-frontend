@@ -68,6 +68,9 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
     label: type.name,
   }));
   const selectedPropTypeIds = selectedPropType ? [selectedPropType.id] : [];
+  const notifyCascadingClose = () => {
+    window.dispatchEvent(new CustomEvent('cascading-picker-open', { detail: { id: 'menu' } }));
+  };
 
   const characteristicPickerData: PickerNode[] = characteristics
     .filter(char => char.type === 'select' || char.type === 'boolean')
@@ -521,11 +524,14 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
                 <span className="flex items-center justify-center mb-1">
                   <DollarSign size={24} />
                 </span>
-                <Menu.Button className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
+                <Menu.Button
+                  onClick={notifyCascadingClose}
+                  className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
                   isPriceFilterActive
                     ? 'bg-yellow-300 text-black border-yellow-300'
                     : 'bg-white border-gray-300 text-gray-700'
-                } hover:shadow-md focus:outline-none`}>
+                  } hover:shadow-md focus:outline-none`}
+                >
                   {priceValue > priceMin ? formatPrice(priceValue, currency) : "precio"}
                 </Menu.Button>
                 <Transition

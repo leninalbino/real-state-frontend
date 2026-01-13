@@ -107,6 +107,10 @@ export const SearchBar = ({
   );
   const selectedPropTypeIds = useMemo(() => selectedPropTypes.map((type) => type.id), [selectedPropTypes]);
 
+  const notifyCascadingClose = () => {
+    window.dispatchEvent(new CustomEvent('cascading-picker-open', { detail: { id: 'menu' } }));
+  };
+
   // Update previousSelected when selectedIds changes
   useEffect(() => {
     setPreviousSelected(selectedIds);
@@ -158,7 +162,6 @@ export const SearchBar = ({
     const chipBase = "px-3 py-1.5 rounded-full border text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0";
     const chipActive = "bg-yellow-300 text-black border-yellow-300";
     const chipIdle = "bg-white/90 border-gray-300 text-gray-800 hover:bg-white";
-    const chipDisabled = "cursor-default";
 
     return (
       <div className="w-full">
@@ -247,7 +250,10 @@ export const SearchBar = ({
           </div>
 
           <Menu as="div" className="relative">
-            <Menu.Button className={`${chipBase} ${isPriceFilterActive ? chipActive : chipIdle}`}>
+            <Menu.Button
+              onClick={notifyCascadingClose}
+              className={`${chipBase} ${isPriceFilterActive ? chipActive : chipIdle}`}
+            >
               <span className="inline-flex items-center gap-2">
                 <PriceIcon active={isPriceFilterActive} size={18} />
                 Precio
@@ -459,7 +465,7 @@ export const SearchBar = ({
     );
   }
 
-  const containerSpacing = variant === "header" ? "mt-3" : "mt-8";
+  const containerSpacing = "mt-8";
 
   return (
     <>
@@ -472,7 +478,10 @@ export const SearchBar = ({
               return (
                 <Menu as="div" className="relative flex flex-col items-center flex-1 min-w-0" key={btn.key}>
                   <span className="flex items-center justify-center mb-1">{btn.icon}</span>
-                  <Menu.Button className={`w-full px-2 py-2 rounded-2xl border transition-all font-bold text-base ${btn.active ? 'bg-yellow-300 text-black border-yellow-300' : 'bg-white border-gray-300 text-gray-700'} hover:shadow-md focus:outline-none`}>
+                  <Menu.Button
+                    onClick={notifyCascadingClose}
+                    className={`w-full px-2 py-2 rounded-2xl border transition-all font-bold text-base ${btn.active ? 'bg-yellow-300 text-black border-yellow-300' : 'bg-white border-gray-300 text-gray-700'} hover:shadow-md focus:outline-none`}
+                  >
                     {btn.label}
                   </Menu.Button>
                   <Transition
@@ -501,7 +510,10 @@ export const SearchBar = ({
               return (
                 <Menu as="div" className="relative flex flex-col items-center flex-1 min-w-0" key={btn.key}>
                   <span className="flex items-center justify-center mb-1">{btn.icon}</span>
-                  <Menu.Button className={`w-full px-2 py-2 rounded-2xl border transition-all font-bold text-base ${btn.active ? 'bg-yellow-300 text-black border-yellow-300' : 'bg-white border-gray-300 text-gray-700'} hover:shadow-md focus:outline-none`}>
+                  <Menu.Button
+                    onClick={notifyCascadingClose}
+                    className={`w-full px-2 py-2 rounded-2xl border transition-all font-bold text-base ${btn.active ? 'bg-yellow-300 text-black border-yellow-300' : 'bg-white border-gray-300 text-gray-700'} hover:shadow-md focus:outline-none`}
+                  >
                     {btn.label}
                   </Menu.Button>
                   <Transition

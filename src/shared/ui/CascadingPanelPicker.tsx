@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { PickerNode } from './MultiColumnPicker/types'; // Reuse the interface
 
 export interface CascadingPanelPickerProps {
@@ -92,11 +93,15 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
   closeOnLeafSelect = selectionMode === 'single',
   fullWidth = false,
 }) => {
+  const columnWidth = 192;
   const [isOpen, setIsOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState<PickerNode[]>([]);
   const [selectedLeafIds, setSelectedLeafIds] = useState<string[]>(value);
   const [expandedStates, setExpandedStates] = useState<Record<number, boolean>>({});
   const [columnTops, setColumnTops] = useState<Record<number, number>>({});
+  const [panelPosition, setPanelPosition] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  const [panelReady, setPanelReady] = useState(false);
+  const instanceIdRef = useRef(`cascading-${Math.random().toString(36).slice(2)}`);
   
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -200,6 +205,42 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
     }
   }, [currentPath]);
 
+  const updatePanelPosition = useCallback(() => {
+    if (!triggerRef.current) {
+      return;
+    }
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const panelWidth = columns.length * columnWidth;
+    const margin = 8;
+    const shouldFlip = triggerRect.left + panelWidth > window.innerWidth - margin;
+    const desiredLeft = shouldFlip ? triggerRect.right - panelWidth : triggerRect.left;
+    const left = Math.min(Math.max(desiredLeft, margin), window.innerWidth - panelWidth - margin);
+    const top = triggerRect.bottom + 4;
+    setPanelPosition({ left, top });
+  }, [columns.length, columnWidth]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    updatePanelPosition();
+    const handleRelayout = () => updatePanelPosition();
+    window.addEventListener('resize', handleRelayout);
+    window.addEventListener('scroll', handleRelayout, true);
+    return () => {
+      window.removeEventListener('resize', handleRelayout);
+      window.removeEventListener('scroll', handleRelayout, true);
+    };
+  }, [isOpen, updatePanelPosition]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    updatePanelPosition();
+    setPanelReady(true);
+  }, [isOpen, updatePanelPosition]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -214,6 +255,20 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, closePicker]);
+
+  useEffect(() => {
+    const handleOpenEvent = (event: Event) => {
+      if (!isOpen) {
+        return;
+      }
+      const detail = (event as CustomEvent<{ id: string }>).detail;
+      if (detail?.id && detail.id !== instanceIdRef.current) {
+        closePicker();
+      }
+    };
+    window.addEventListener('cascading-picker-open', handleOpenEvent as EventListener);
+    return () => window.removeEventListener('cascading-picker-open', handleOpenEvent as EventListener);
   }, [isOpen, closePicker]);
 
   useEffect(() => {
@@ -233,6 +288,8 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
       setCurrentPath([]);
       setColumnTops({});
       setExpandedStates({});
+      setPanelReady(false);
+      window.dispatchEvent(new CustomEvent('cascading-picker-open', { detail: { id: instanceIdRef.current } }));
     }
     setIsOpen(prev => !prev);
   };
@@ -242,32 +299,38 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
       <div ref={triggerRef} onClick={togglePicker} className={fullWidth ? "w-full" : ""}>
         {trigger}
       </div>
-      {isOpen && (
-        <div
-          ref={panelRef}
-          className="absolute z-10 mt-1 inline-flex bg-[#EAFBFF] shadow-lg"
-          style={{ width: 'fit-content' }}
-        >
-          {columns.map((columnNodes, colIndex) => (
-            <div
-              key={colIndex}
-              className={`w-48 border-r border-gray-200/50 last:border-r-0 ${colIndex > 0 ? 'absolute' : 'relative'}`}
-              style={colIndex > 0 ? { left: `${colIndex * 192}px`, top: columnTops[colIndex] || 0 } : {}}
-            >
-              <PickerColumn
-                nodes={columnNodes}
-                selectedIdSet={selectedIdSet}
-                pathIds={currentPath.map(p => p.id)}
-                onSelect={(node) => handleSelect(node)}
-                onHover={(node, event) => handleHover(node, colIndex, event)}
-                initialVisibleItems={initialVisibleItems}
-                isExpanded={expandedStates[colIndex] || false}
-                onToggleExpanded={() => setExpandedStates(prev => ({ ...prev, [colIndex]: !prev[colIndex] }))}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      {isOpen && panelReady &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="fixed z-50 inline-flex bg-[#EAFBFF] shadow-lg"
+            style={{
+              width: 'fit-content',
+              left: panelPosition.left,
+              top: panelPosition.top,
+            }}
+          >
+            {columns.map((columnNodes, colIndex) => (
+              <div
+                key={colIndex}
+                className={`w-48 border-r border-gray-200/50 last:border-r-0 ${colIndex > 0 ? 'absolute' : 'relative'}`}
+                style={colIndex > 0 ? { left: `${colIndex * 192}px`, top: columnTops[colIndex] || 0 } : {}}
+              >
+                <PickerColumn
+                  nodes={columnNodes}
+                  selectedIdSet={selectedIdSet}
+                  pathIds={currentPath.map(p => p.id)}
+                  onSelect={(node) => handleSelect(node)}
+                  onHover={(node, event) => handleHover(node, colIndex, event)}
+                  initialVisibleItems={initialVisibleItems}
+                  isExpanded={expandedStates[colIndex] || false}
+                  onToggleExpanded={() => setExpandedStates(prev => ({ ...prev, [colIndex]: !prev[colIndex] }))}
+                />
+              </div>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
