@@ -48,9 +48,9 @@ export const HeroSection = () => {
     <section className="relative w-full h-[80vh] overflow-hidden bg-gray-100">
       {/* TEXTO GLOBAL EN LA PARTE SUPERIOR DERECHA */}
       <div className="absolute top-8 right-6 lg:right-12 z-20 pointer-events-none">
-        <p className="text-right font-bold text-xs lg:text-sm uppercase text-gray-400 tracking-widest drop-shadow-md">
+        {/* <p className="text-right font-bold text-xs lg:text-sm uppercase text-gray-400 tracking-widest drop-shadow-md">
           Explora propiedades en RD
-        </p>
+        </p> */}
       </div>
       <Swiper
         modules={[Autoplay, Navigation, Pagination]}
@@ -88,13 +88,6 @@ export const HeroSection = () => {
                     alt={slide.titulo}
                   />
                   <div className="absolute inset-0 bg-black/40" />
-
-                  {/* CONTENEDOR DEL BOTÓN: Centrado en pantalla */}
-                  <div className="relative z-10 flex items-center justify-center w-full h-full">
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-3 rounded-full font-bold transition-all transform hover:scale-105 shadow-xl">
-                      Ver detalles
-                    </button>
-                  </div>
 
                   {/* CONTENEDOR DEL TÍTULO: Abajo a la derecha */}
                   <div className="absolute bottom-2 right-6 lg:right-2 z-20 text-right max-w-2xl px-4">

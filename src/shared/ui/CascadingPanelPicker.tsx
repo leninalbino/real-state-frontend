@@ -9,6 +9,7 @@ export interface CascadingPanelPickerProps {
   onChange: (selectedLeafIds: string[], selectedLeafNodes: PickerNode[]) => void;
   initialVisibleItems?: number;
   closeOnLeafSelect?: boolean;
+  fullWidth?: boolean;
 }
 
 const ColumnItem: React.FC<{
@@ -89,6 +90,7 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
   onChange,
   initialVisibleItems = 5,
   closeOnLeafSelect = selectionMode === 'single',
+  fullWidth = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState<PickerNode[]>([]);
@@ -236,8 +238,8 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
   };
 
   return (
-    <div className="relative">
-      <div ref={triggerRef} onClick={togglePicker}>
+    <div className={fullWidth ? "relative w-full" : "relative"}>
+      <div ref={triggerRef} onClick={togglePicker} className={fullWidth ? "w-full" : ""}>
         {trigger}
       </div>
       {isOpen && (

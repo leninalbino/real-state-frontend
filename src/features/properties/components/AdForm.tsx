@@ -3,16 +3,20 @@ import { Upload, Home, KeyRound, MousePointerClick, DollarSign, Box, MapPin, Che
 import { Menu, Transition } from "@headlessui/react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../app/auth/useAuth";
-import { DOMINICAN_REPUBLIC_LOCATIONS, type Provincia } from "../../../shared/data/locations";
 import { formatPrice } from "../../../shared/utils/formatPrice";
-import { CharacteristicsMenuContent } from "./CharacteristicsMenuContent";
-import { PropertyTypeMenuItems } from "./PropertyTypeMenuItems";
 import { useAmenitySelection, type SelectedAmenities } from "../hooks/useAmenitySelection";
 import { usePropertyFiltersData } from "../hooks/usePropertyFiltersData";
-import type { PropertyType, PropertyCharacteristic } from "../services/formService";
+import type { PropertyType } from "../services/formService";
 import type { Property, ListingType } from "../types"; // Import Currency
+import { CascadingPanelPicker } from "../../../shared/ui/CascadingPanelPicker";
+import type { PickerNode } from "../../../shared/ui/MultiColumnPicker/types";
+import { useLocationData } from "../hooks/useLocationData";
 
 type PropertyFormData = Omit<Property, 'id' | 'moderationStatus' | 'agent'>;
+interface CharacteristicMeta {
+  characteristicId: string;
+  value: string;
+}
 
 interface AdFormProps {
   onCancel?: () => void;
@@ -35,12 +39,10 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
     "SALE",
   ]);
   const [selectedPropType, setSelectedPropType] = useState<PropertyType | null>(null);
-  const [activeProvince, setActiveProvince] = useState<Provincia | null>(null);
   const [finalLocation, setFinalLocation] = useState<string>("");
+  const [locationValueIds, setLocationValueIds] = useState<string[]>([]);
   const [priceValue, setPriceValue] = useState<number>(priceMin);
   const [currency, setCurrency] = useState<'USD' | 'RD'>('USD');
-  const [activeCategory, setActiveCategory] = useState<PropertyCharacteristic | null>(null);
-  const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [descripcion, setDescripcion] = useState("");
   const [titulo, setTitulo] = useState("");
   const [uploadedPhotos, setUploadedPhotos] = useState<(File | string)[]>([]);
@@ -57,10 +59,53 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
     selectedAmenities,
     setSelectedAmenities,
     handleAmenityChange,
-    isAmenitySelected,
   } = useAmenitySelection("single");
   const { propertyTypes, characteristics, loading, error } =
     usePropertyFiltersData();
+  const { locationData } = useLocationData();
+  const propTypePickerData = propertyTypes.map((type) => ({
+    id: type.id,
+    label: type.name,
+  }));
+  const selectedPropTypeIds = selectedPropType ? [selectedPropType.id] : [];
+
+  const characteristicPickerData: PickerNode[] = characteristics
+    .filter(char => char.type === 'select' || char.type === 'boolean')
+    .map(char => {
+      let children: PickerNode[] = [];
+      if (char.type === 'boolean') {
+        children = [
+          { id: `${char.id}-true`, label: 'Sí', meta: { characteristicId: char.id, value: 'Sí' } },
+          { id: `${char.id}-false`, label: 'No', meta: { characteristicId: char.id, value: 'No' } },
+        ];
+      } else if (char.type === 'select' && char.options) {
+        children = char.options.map(opt => ({
+          id: `${char.id}-${opt.value}`,
+          label: opt.label,
+          meta: { characteristicId: char.id, value: opt.value },
+        }));
+      }
+      return {
+        id: char.id,
+        label: char.label,
+        children: children,
+      };
+    });
+
+  const selectedCharacteristicIds = (() => {
+    for (const node of characteristicPickerData) {
+      const value = selectedAmenities[node.id];
+      if (Array.isArray(value) && value.length > 0 && node.children) {
+        const childNode = node.children.find(c => (c.meta as CharacteristicMeta).value === value[0]);
+        if (childNode) {
+          return [childNode.id];
+        }
+      }
+    }
+    return [];
+  })();
+
+  const characteristicIdSet = new Set(characteristicPickerData.map((node) => node.id));
 
   useEffect(() => {
     if (isEditing && initialData) {
@@ -119,10 +164,6 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
     } else {
       setTiposSeleccionados([...tiposSeleccionados, tipo]);
     }
-  };
-
-  const handlePropTypeToggle = (propType: PropertyType) => {
-    setSelectedPropType(selectedPropType?.id === propType.id ? null : propType);
   };
 
   const handlePriceSliderChange = (value: number) => {
@@ -266,8 +307,8 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
     const draft = {
       tiposSeleccionados,
       selectedPropTypeId: selectedPropType?.id,
-      activeProvinceName: activeProvince?.nombre,
       finalLocation,
+      locationValueIds,
       priceValue,
       currency,
       selectedAmenities,
@@ -293,13 +334,10 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
       if (draft.selectedPropTypeId) {
         setPendingDraft({ selectedPropTypeId: draft.selectedPropTypeId });
       }
-      if (draft.activeProvinceName) {
-        const province = DOMINICAN_REPUBLIC_LOCATIONS.find(
-          (item) => item.nombre === draft.activeProvinceName
-        );
-        if (province) setActiveProvince(province);
-      }
       if (draft.finalLocation) setFinalLocation(draft.finalLocation);
+      if (Array.isArray(draft.locationValueIds)) {
+        setLocationValueIds(draft.locationValueIds);
+      }
       if (typeof draft.priceValue === "number") setPriceValue(draft.priceValue);
       if (draft.currency) setCurrency(draft.currency);
       if (draft.selectedAmenities) {
@@ -337,8 +375,8 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
   }, [
     tiposSeleccionados,
     selectedPropType,
-    activeProvince,
     finalLocation,
+    locationValueIds,
     priceValue,
     currency,
     selectedAmenities,
@@ -388,7 +426,7 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
             {/* Barra de filtros */}
             <div className="flex items-center justify-between gap-3 overflow-visible py-2 px-1 w-full bg-gradient-to-r from-gray-50 to-transparent rounded-lg p-4 relative z-20">
               {/* Ventas */}
-              <div className="flex flex-col items-center flex-1 min-w-max">
+              <div className="flex flex-col items-center w-44">
                 <span className="flex items-center justify-center mb-1">
                   <Home size={24} />
                 </span>
@@ -405,7 +443,7 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
               </div>
 
               {/* Rentas */}
-              <div className="flex flex-col items-center flex-1 min-w-max">
+              <div className="flex flex-col items-center w-44">
                 <span className="flex items-center justify-center mb-1">
                   <KeyRound size={24} />
                 </span>
@@ -422,107 +460,64 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
               </div>
 
               {/* Tipo */}
-              <Menu as="div" className="relative flex flex-col items-center flex-1 min-w-max">
+              <div className="relative flex flex-col items-center w-44">
                 <span className="flex items-center justify-center mb-1">
                   <MousePointerClick size={24} />
                 </span>
-                <Menu.Button className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
-                  selectedPropType
-                    ? 'bg-yellow-300 text-black border-yellow-300'
-                    : 'bg-white border-gray-300 text-gray-700'
-                } hover:shadow-md focus:outline-none`}>
-                  {selectedPropType?.name || 'tipo'}
-                </Menu.Button>
-                <Transition
-                  as={Fragment}
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
-                  <Menu.Items className="absolute top-full mt-2 w-56 origin-top-left bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
-                    <PropertyTypeMenuItems
-                      propertyTypes={propertyTypes}
-                      isSelected={(type) => selectedPropType?.id === type.id}
-                      onToggle={handlePropTypeToggle}
-                    />
-                  </Menu.Items>
-                </Transition>
-              </Menu>
+                <CascadingPanelPicker
+                  trigger={
+                    <button className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
+                      selectedPropType
+                        ? 'bg-yellow-300 text-black border-yellow-300'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    } hover:shadow-md focus:outline-none`}>
+                      {selectedPropType?.name || 'tipo'}
+                    </button>
+                  }
+                  data={propTypePickerData}
+                  selectionMode="single"
+                  value={selectedPropTypeIds}
+                  fullWidth
+                  onChange={(ids) => {
+                    const nextType = propertyTypes.find((type) => ids.includes(type.id)) || null;
+                    setSelectedPropType(nextType);
+                  }}
+                />
+              </div>
 
               {/* Lugar */}
-              <Menu as="div" className="relative flex flex-col items-center flex-1 min-w-max">
+              <div className="relative flex flex-col items-center w-44">
                 <span className="flex items-center justify-center mb-1">
                   <MapPin size={24} />
                 </span>
-                <Menu.Button className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
-                  finalLocation.length > 0
-                    ? 'bg-yellow-300 text-black border-yellow-300'
-                    : 'bg-white border-gray-300 text-gray-700'
-                } hover:shadow-md focus:outline-none`}>
-                  {finalLocation || "lugar o sector"}
-                </Menu.Button>
-                <Transition
-                  as={Fragment}
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
-                  <Menu.Items className="absolute top-full mt-2 w-[40rem] origin-top-left bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
-                    <div className="flex h-80">
-                      {/* Columna de Provincias */}
-                      <div className="w-1/3 border-r border-gray-200 p-2 overflow-y-auto">
-                        {DOMINICAN_REPUBLIC_LOCATIONS.map(province => (
-                          <button
-                            key={province.nombre}
-                            onClick={() => setActiveProvince(province)}
-                            className={`w-full text-left px-4 py-3 rounded-md font-semibold text-sm transition-colors ${
-                              activeProvince?.nombre === province.nombre
-                                ? 'bg-yellow-300 text-black'
-                                : 'text-gray-700 hover:bg-yellow-100'
-                            }`}
-                          >
-                            {province.nombre}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Columna de Municipios */}
-                      <div className="w-2/3 p-4 overflow-y-auto">
-                        {activeProvince ? (
-                          <div>
-                            <div className="text-sm font-semibold text-gray-800 mb-3">Municipios en {activeProvince.nombre}</div>
-                            <div className="space-y-2">
-                              {activeProvince.municipios.map(municipality => (
-                                <Menu.Item key={municipality.nombre}>
-                                  <button
-                                    onClick={() => setFinalLocation(`${municipality.nombre}, ${activeProvince.nombre}`)}
-                                    className="w-full text-left px-4 py-2 rounded-md text-sm transition-colors text-gray-700 hover:bg-yellow-100"
-                                  >
-                                    {municipality.nombre}
-                                  </button>
-                                </Menu.Item>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center text-gray-400 py-8">
-                            <p className="text-sm">Selecciona una provincia</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Menu.Items>
-                </Transition>
-              </Menu>
+                <CascadingPanelPicker
+                  trigger={
+                    <button className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
+                      finalLocation.length > 0
+                        ? 'bg-yellow-300 text-black border-yellow-300'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    } hover:shadow-md focus:outline-none`}>
+                      {finalLocation || "lugar o sector"}
+                    </button>
+                  }
+                  data={locationData}
+                  selectionMode="single"
+                  value={locationValueIds}
+                  fullWidth
+                  onChange={(ids, nodes) => {
+                    setLocationValueIds(ids);
+                    const lastNode = nodes[nodes.length - 1];
+                    if (lastNode) {
+                      setFinalLocation(lastNode.label);
+                    } else {
+                      setFinalLocation("");
+                    }
+                  }}
+                />
+              </div>
 
               {/* Precio */}
-              <Menu as="div" className="relative flex flex-col items-center flex-1 min-w-max">
+              <Menu as="div" className="relative flex flex-col items-center w-44">
                 <span className="flex items-center justify-center mb-1">
                   <DollarSign size={24} />
                 </span>
@@ -622,42 +617,40 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
               </Menu>
 
               {/* Características */}
-              <Menu as="div" className="relative flex flex-col items-center flex-1 min-w-max">
+              <div className="relative flex flex-col items-center w-44">
                 <span className="flex items-center justify-center mb-1">
                   <Box size={24} />
                 </span>
-                <Menu.Button className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
-                  isCharacteristicsFilterActive
-                    ? 'bg-yellow-300 text-black border-yellow-300'
-                    : 'bg-white border-gray-300 text-gray-700'
-                } hover:shadow-md focus:outline-none`}>
-                  características
-                </Menu.Button>
-                <Transition
-                  as={Fragment}
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
-                  <Menu.Items className="absolute top-full mt-2 w-full sm:w-96 md:w-[500px] lg:w-[600px] origin-top-right right-0 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
-                    <CharacteristicsMenuContent
-                      characteristics={characteristics}
-                      activeCategory={activeCategory}
-                      onActiveCategoryChange={setActiveCategory}
-                      selectedAmenities={selectedAmenities}
-                      onAmenityChange={handleAmenityChange}
-                      isAmenitySelected={isAmenitySelected}
-                      showMoreCategories={showMoreCategories}
-                      onToggleShowMore={() =>
-                        setShowMoreCategories(!showMoreCategories)
+                <CascadingPanelPicker
+                  trigger={
+                    <button className={`w-full px-4 py-3 rounded-2xl border transition-all font-bold text-base ${
+                      isCharacteristicsFilterActive
+                        ? 'bg-yellow-300 text-black border-yellow-300'
+                        : 'bg-white border-gray-300 text-gray-700'
+                    } hover:shadow-md focus:outline-none`}>
+                      características
+                    </button>
+                  }
+                  data={characteristicPickerData}
+                  selectionMode="single"
+                  value={selectedCharacteristicIds}
+                  fullWidth
+                  onChange={(ids, nodes) => {
+                    setSelectedAmenities((prev) => {
+                      const next = { ...prev };
+                      characteristicIdSet.forEach((charId) => {
+                        delete next[charId];
+                      });
+                      const leaf = nodes.find((node) => ids.includes(node.id));
+                      if (leaf?.meta) {
+                        const { characteristicId, value } = leaf.meta as CharacteristicMeta;
+                        next[characteristicId] = [value];
                       }
-                    />
-                  </Menu.Items>
-                </Transition>
-              </Menu>
+                      return next;
+                    });
+                  }}
+                />
+              </div>
             </div>
 
             {/* Imágenes */}

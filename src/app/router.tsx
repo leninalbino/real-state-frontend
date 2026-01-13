@@ -19,11 +19,7 @@ import CharacteristicsPage from "../features/admin/pages/CharacteristicsPage";
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: (
-      <AppLayout>
-        <HomePage />
-      </AppLayout>
-    ),
+    element: <HomePage />,
   },
   {
     path: "/propiedad/:id",
@@ -39,17 +35,13 @@ export const router = createBrowserRouter([
   },
   {
     path: "/anunciar",
-    element: (
-      <AppLayout>
-        <PublishPropertyPage />
-      </AppLayout>
-    ),
+    element: <PublishPropertyPage />,
   },
   {
     path: "/admin",
     element: (
       <AdminRoute>
-        <AppLayout>
+        <AppLayout hideNav>
           <AdminPage />
         </AppLayout>
       </AdminRoute>
@@ -59,7 +51,7 @@ export const router = createBrowserRouter([
     path: "/admin/edit/:id",
     element: (
       <AdminRoute>
-        <AppLayout>
+        <AppLayout hideNav>
           <EditPropertyPage />
         </AppLayout>
       </AdminRoute>
@@ -69,7 +61,7 @@ export const router = createBrowserRouter([
     path: "/admin/agents",
     element: (
       <AdminRoute>
-        <AppLayout>
+        <AppLayout hideNav>
           <AgentListPage />
         </AppLayout>
       </AdminRoute>
@@ -79,7 +71,7 @@ export const router = createBrowserRouter([
     path: "/admin/agents/:id",
     element: (
       <AdminRoute>
-        <AppLayout>
+        <AppLayout hideNav>
           <AgentDetailPage />
         </AppLayout>
       </AdminRoute>
@@ -89,7 +81,7 @@ export const router = createBrowserRouter([
     path: "/admin/maintenance",
     element: (
       <AdminRoute>
-        <AppLayout>
+        <AppLayout hideNav>
           <MaintenancePage />
         </AppLayout>
       </AdminRoute>
@@ -99,7 +91,7 @@ export const router = createBrowserRouter([
     path: "/admin/maintenance/property-types",
     element: (
       <AdminRoute>
-        <AppLayout>
+        <AppLayout hideNav>
           <PropertyTypesPage />
         </AppLayout>
       </AdminRoute>
@@ -109,7 +101,7 @@ export const router = createBrowserRouter([
     path: "/admin/maintenance/characteristics",
     element: (
       <AdminRoute>
-        <AppLayout>
+        <AppLayout hideNav>
           <CharacteristicsPage />
         </AppLayout>
       </AdminRoute>
