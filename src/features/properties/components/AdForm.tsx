@@ -55,11 +55,7 @@ export const AdForm = ({ onCancel, initialData, isEditing = false, onSubmit }: A
     selectedPropTypeId?: string;
   } | null>(null);
 
-  const {
-    selectedAmenities,
-    setSelectedAmenities,
-    handleAmenityChange,
-  } = useAmenitySelection("single");
+  const { selectedAmenities, setSelectedAmenities } = useAmenitySelection("single");
   const { propertyTypes, characteristics, loading, error } =
     usePropertyFiltersData();
   const { locationData } = useLocationData();
