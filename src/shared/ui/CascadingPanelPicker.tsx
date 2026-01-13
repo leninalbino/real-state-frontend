@@ -16,11 +16,13 @@ const ColumnItem: React.FC<{
   isSelected: boolean;
   isInPath: boolean;
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
-}> = ({ node, isSelected, isInPath, onClick }) => {
+  onHover: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}> = ({ node, isSelected, isInPath, onClick, onHover }) => {
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={onHover}
       className={`w-full text-left px-4 py-2 text-sm transition-colors duration-150 ${
         isSelected
           ? 'bg-[#FFF36D] text-black'
@@ -36,26 +38,32 @@ const ColumnItem: React.FC<{
 
 const PickerColumn: React.FC<{
   nodes: PickerNode[];
-  selectedIds: string[];
+  selectedIdSet: Set<string>;
   pathIds: string[];
-  onSelect: (node: PickerNode, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onSelect: (node: PickerNode) => void;
+  onHover: (node: PickerNode, event: React.MouseEvent<HTMLButtonElement>) => void;
   initialVisibleItems: number;
   isExpanded: boolean;
   onToggleExpanded: () => void;
-}> = ({ nodes, selectedIds, pathIds, onSelect, initialVisibleItems, isExpanded, onToggleExpanded }) => {
+}> = ({ nodes, selectedIdSet, pathIds, onSelect, onHover, initialVisibleItems, isExpanded, onToggleExpanded }) => {
   const visibleItems = isExpanded ? nodes : nodes.slice(0, initialVisibleItems);
   const canExpand = nodes.length > initialVisibleItems;
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-[#EAFBFF]">
+    <div
+      className={`flex flex-col h-full bg-[#EAFBFF] ${
+        isExpanded ? 'max-h-60 overflow-y-auto' : 'overflow-y-hidden'
+      }`}
+    >
       <div className="flex-grow">
         {visibleItems.map((node) => (
           <ColumnItem
             key={node.id}
             node={node}
-            isSelected={selectedIds.includes(node.id)}
+            isSelected={selectedIdSet.has(node.id)}
             isInPath={pathIds.includes(node.id)}
-            onClick={(event) => onSelect(node, event)}
+            onClick={() => onSelect(node)}
+            onHover={(event) => onHover(node, event)}
           />
         ))}
       </div>
@@ -126,7 +134,30 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
     return cols;
   }, [data, currentPath]);
 
-  const handleSelect = useCallback((node: PickerNode, colIndex: number, event: React.MouseEvent<HTMLButtonElement>) => {
+  const selectedIdSet = useMemo(() => {
+    const selectedIds = new Set(selectedLeafIds);
+    const highlighted = new Set<string>();
+
+    const visit = (node: PickerNode): boolean => {
+      let hasSelected = selectedIds.has(node.id);
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          if (visit(child)) {
+            hasSelected = true;
+          }
+        }
+      }
+      if (hasSelected) {
+        highlighted.add(node.id);
+      }
+      return hasSelected;
+    };
+
+    data.forEach(visit);
+    return highlighted;
+  }, [data, selectedLeafIds]);
+
+  const handleSelect = useCallback((node: PickerNode) => {
     const isLeaf = !node.children || node.children.length === 0;
 
     if (isLeaf) {
@@ -145,18 +176,27 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
       }
     }
     else {
-      const newPath = [...currentPath.slice(0, colIndex), node];
-      setCurrentPath(newPath);
-      
-      const itemElement = event.currentTarget;
-      if (itemElement && panelRef.current) {
-          const panelRect = panelRef.current.getBoundingClientRect();
-          const itemRect = itemElement.getBoundingClientRect();
-          const top = itemRect.top - panelRect.top;
-          setColumnTops(prev => ({ ...prev, [colIndex + 1]: top }));
-      }
+      return;
     }
-  }, [currentPath, selectedLeafIds, selectionMode, onChange, getSelectedLeafNodes, closeOnLeafSelect, closePicker]);
+  }, [selectedLeafIds, selectionMode, onChange, getSelectedLeafNodes, closeOnLeafSelect, closePicker]);
+
+  const handleHover = useCallback((node: PickerNode, colIndex: number, event: React.MouseEvent<HTMLButtonElement>) => {
+    const hasChildren = node.children && node.children.length > 0;
+    if (!hasChildren) {
+      return;
+    }
+
+    const newPath = [...currentPath.slice(0, colIndex), node];
+    setCurrentPath(newPath);
+
+    const itemElement = event.currentTarget;
+    if (itemElement && panelRef.current) {
+      const panelRect = panelRef.current.getBoundingClientRect();
+      const itemRect = itemElement.getBoundingClientRect();
+      const top = itemRect.top - panelRect.top;
+      setColumnTops(prev => ({ ...prev, [colIndex + 1]: top }));
+    }
+  }, [currentPath]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -188,10 +228,9 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
 
   const togglePicker = () => {
     if (!isOpen) {
-        const initialPath: PickerNode[] = [];
-        setCurrentPath(initialPath);
-        setColumnTops({});
-        setExpandedStates({});
+      setCurrentPath([]);
+      setColumnTops({});
+      setExpandedStates({});
     }
     setIsOpen(prev => !prev);
   };
@@ -215,9 +254,10 @@ export const CascadingPanelPicker: React.FC<CascadingPanelPickerProps> = ({
             >
               <PickerColumn
                 nodes={columnNodes}
-                selectedIds={selectedLeafIds}
+                selectedIdSet={selectedIdSet}
                 pathIds={currentPath.map(p => p.id)}
-                onSelect={(node, event) => handleSelect(node, colIndex, event)}
+                onSelect={(node) => handleSelect(node)}
+                onHover={(node, event) => handleHover(node, colIndex, event)}
                 initialVisibleItems={initialVisibleItems}
                 isExpanded={expandedStates[colIndex] || false}
                 onToggleExpanded={() => setExpandedStates(prev => ({ ...prev, [colIndex]: !prev[colIndex] }))}
